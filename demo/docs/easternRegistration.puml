@@ -1,0 +1,57 @@
+@startuml
+skinparam classAttributeIconSize 0
+hide circle
+
+class EasternSchedule {
+  -{static} BASE: String = "https://reg-prod.ec.easternct.edu/StudentRegistrationSsb"
+  -term: String
+  ~cookieManager: CookieManager
+  ~client: HttpClient
+  --
+  +EasternSchedule()
+  +getTerm(): String
+  -retrieveTerms(): String
+  -parseTerms(content: String): ArrayList<Term>
+  -parseCourses(content: String): ArrayList<Course>
+  +getAvailableTerms(): ArrayList<Term>
+  -postTerm(): String
+  -createCacheFile(subject: String): Path
+  -cacheCourses(subject: String): void
+  +queryCourseBySubject(subject: String): ArrayList<Course>
+}
+
+record Course {
+  -id : String
+  -subject: String
+  -courseNumber: String
+  -meetingsFaculty: List<MeetingFaculty>
+}
+
+record MeetingFaculty {
+  -meetingTime: MeetingTime
+}
+
+record MeetingTime {
+  -monday: boolean
+  -tuesday: boolean
+  -wednesday: boolean
+  -thursday: boolean
+  -friday: boolean
+  -saturday: boolean
+  -sunday: boolean
+}
+
+record Term {
+  -code: String
+  -description: String
+}
+
+'Aggregation and composition
+MeetingFaculty "1" o-- "1" MeetingTime : has a >
+Course "1" 0-- "0*" MeetingFaculty: has a >
+
+'Dependencies
+EasternSchedule ..> Term : uses
+EasternSchedule ..> Course : uses
+
+@enduml
