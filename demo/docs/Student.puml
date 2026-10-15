@@ -29,6 +29,11 @@ note right of Student::addCourse
   registration is not permitted.
 end note
 
+note right of Student::displaySchedule
+  Prints the enrolled classes in a table
+  with meeting information and total credits.
+end note
+
 Student "1" o-- "0..*" Course
 
 @enduml
