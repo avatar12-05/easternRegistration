@@ -81,8 +81,12 @@ public class StudentTest {
 
         String schedule = output.toString();
         assertTrue(schedule.contains("Schedule for Ada Lovelace (ID: 12345)"));
-        assertTrue(schedule.contains("CSC 360-01, 3 credits, Course"));
-        assertTrue(schedule.contains("M, 9:00 - 10:00 AM, Instructor: TBA"));
+        assertTrue(schedule.contains("| Course"));
+        assertTrue(schedule.contains("| Section"));
+        assertTrue(schedule.contains("| Days / Time"));
+        assertTrue(schedule.contains("CSC 360"));
+        assertTrue(schedule.contains("M, 9:00 - 10:00 AM"));
+        assertTrue(schedule.contains("Total credits: 3 / 16"));
     }
 
     @Test

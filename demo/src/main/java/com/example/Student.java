@@ -205,33 +205,75 @@ public class Student {
             return;
         }
 
+        List<String> headers = List.of(
+            "Course", "Section", "Title", "Credits", "Days / Time", "Instructor"
+        );
+        List<List<String>> rows = new ArrayList<>();
         for (Course course : courses) {
-            System.out.printf(
-                "%s %s-%s, %s credits, %s%n",
-                valueOr(course.subject(), "Subject TBA"),
-                valueOr(course.courseNumber(), "Number TBA"),
-                valueOr(course.sequenceNumber(), "Section TBA"),
-                formatCourseCredits(course),
-                valueOr(course.courseTitle(), "Title TBA").replace("&amp;", "&")
-            );
             if (course.meetingsFaculty() == null || course.meetingsFaculty().isEmpty()) {
-                System.out.println("  Days TBA, Time TBA, Instructor: TBA");
+                rows.add(scheduleRow(course, null));
                 continue;
             }
             for (Course.MeetingFaculty meeting : course.meetingsFaculty()) {
-                Course.MeetingTime time = meeting == null ? null : meeting.meetingTime();
-                List<Course.Faculty> faculty =
-                    meeting != null && meeting.faculty() != null
-                        && !meeting.faculty().isEmpty()
-                        ? meeting.faculty()
-                        : course.faculty();
-                System.out.printf(
-                    "  %s, Instructor: %s%n",
-                    formatMeeting(time),
-                    formatInstructors(faculty)
-                );
+                rows.add(scheduleRow(course, meeting));
             }
         }
+        displayTable(headers, rows);
+        System.out.printf("Total credits: %s / %d%n", formatNumber(getTotalCredits()),
+            MAX_CREDITS);
+    }
+
+    private List<String> scheduleRow(Course course, Course.MeetingFaculty meeting) {
+        Course.MeetingTime meetingTime = meeting == null ? null : meeting.meetingTime();
+        List<Course.Faculty> faculty =
+            meeting != null && meeting.faculty() != null && !meeting.faculty().isEmpty()
+                ? meeting.faculty()
+                : course.faculty();
+        String courseName = valueOr(course.subject(), "Subject TBA") + " "
+            + valueOr(course.courseNumber(), "Number TBA");
+        return List.of(
+            courseName,
+            valueOr(course.sequenceNumber(), "TBA"),
+            valueOr(course.courseTitle(), "Title TBA").replace("&amp;", "&"),
+            formatCourseCredits(course),
+            formatMeeting(meetingTime),
+            formatInstructors(faculty)
+        );
+    }
+
+    private void displayTable(List<String> headers, List<List<String>> rows) {
+        int[] widths = new int[headers.size()];
+        for (int column = 0; column < headers.size(); column++) {
+            widths[column] = headers.get(column).length();
+            for (List<String> row : rows) {
+                widths[column] = Math.max(widths[column], row.get(column).length());
+            }
+        }
+        printTableBorder(widths);
+        printTableRow(headers, widths);
+        printTableBorder(widths);
+        for (List<String> row : rows) {
+            printTableRow(row, widths);
+        }
+        printTableBorder(widths);
+    }
+
+    private void printTableBorder(int[] widths) {
+        StringBuilder border = new StringBuilder("+");
+        for (int width : widths) {
+            border.append("-".repeat(width + 2)).append("+");
+        }
+        System.out.println(border);
+    }
+
+    private void printTableRow(List<String> values, int[] widths) {
+        StringBuilder row = new StringBuilder("|");
+        for (int column = 0; column < widths.length; column++) {
+            row.append(" ")
+                .append(String.format("%-" + widths[column] + "s", values.get(column)))
+                .append(" |");
+        }
+        System.out.println(row);
     }
 
     /** 
