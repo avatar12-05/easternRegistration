@@ -1,0 +1,34 @@
+@startuml
+skinparam classAttributeIconSize 0
+hide circle
+
+class Student {
+  {static} + MAX_CREDITS: int = 16
+  - id: String
+  - firstName: String
+  - lastName: String
+  - courses: ArrayList<Course>
+  + Student(id: String, firstName: String, lastName: String)
+  + getId(): String
+  + getFirstName(): String
+  + getLastName(): String
+  + getCourses(): List<Course>
+  + getTotalCredits(): double
+  + addCourse(course: Course): boolean
+  + addCourses(courses: Course...): int
+  + dropCourse(course: Course): boolean
+  + dropCourses(courses: Course...): int
+  + dropAllCourses(): void
+  + displaySchedule(): void
+}
+
+note right of Student::addCourse
+  Enforces the 16-credit limit,
+  seat availability, and meeting conflicts.
+  Throws IllegalStateException when
+  registration is not permitted.
+end note
+
+Student "1" o-- "0..*" Course
+
+@enduml

@@ -38,9 +38,19 @@ public class EasternSchedule {
      * Constructs an EasternSchedule object with default term
      */
     public EasternSchedule()  {
+        this("202740");
+    }
 
-        // set term (202710 is Fall 2026)
-        this.term = "202710"; 
+    /**
+     * Constructs an EasternSchedule object for the specified term.
+     * @param term the six-digit term code
+     */
+    public EasternSchedule(String term) {
+        if (term == null || !term.matches("\\d{6}")) {
+            throw new IllegalArgumentException("Term code must contain six digits.");
+        }
+
+        this.term = term;
 
         // set cookieManager and build client for web retreival        
         cookieManager = new CookieManager();
@@ -68,7 +78,7 @@ public class EasternSchedule {
      * @throws InterruptedException if a web request is interrupted
      */
     private String retrieveTerms() throws IOException, InterruptedException {
-        Path cacheFile = Path.of("cache/terms.txt");
+        Path cacheFile = cacheDirectory().resolve("terms.txt");
         String content;
 
         if (Files.exists(cacheFile)) {
@@ -93,6 +103,7 @@ public class EasternSchedule {
         }
 
         content = response.body();
+        Files.createDirectories(cacheFile.getParent());
         Files.writeString(cacheFile, content);
 
         return content; 
@@ -183,7 +194,20 @@ public class EasternSchedule {
      * @return Path
      */
     private Path createCacheFile(String subject) {
-        return Path.of("cache/term_" + term + "_" + subject + ".txt");
+        return cacheDirectory().resolve("term_" + term + "_" + subject + ".txt");
+    }
+
+    private Path cacheDirectory() {
+        Path localCache = Path.of("cache");
+        if (Files.isRegularFile(localCache.resolve("terms.txt"))) {
+            return localCache;
+        }
+
+        Path parentCache = Path.of("..", "cache");
+        if (Files.isRegularFile(parentCache.resolve("terms.txt"))) {
+            return parentCache;
+        }
+        return localCache;
     }
 
     /**
@@ -193,21 +217,24 @@ public class EasternSchedule {
      * @throws Exception if there is an error connecting to the webserver
      */
     private void cacheCourses(String subject) throws Exception {
-        
+        if (subject == null || !subject.matches("[A-Za-z][A-Za-z0-9]*")) {
+            throw new IllegalArgumentException(
+                "Subject must start with a letter and contain only letters or numbers."
+            );
+        }
+        subject = subject.toUpperCase(java.util.Locale.ROOT);
         Path cacheFile = createCacheFile(subject);
 
-        // if file already exists, return
-        if (Files.exists(cacheFile)) {            
-           System.out.println("Using cached term data from " + cacheFile + "...");
-           return;           
+        if (Files.isRegularFile(cacheFile)) {
+            System.out.println("Using cached term data from " + cacheFile + "...");
+            return;
         }
 
-        // post request to establish term is required
-        String term_response = postTerm();
+        postTerm();
 
         String url = BASE + "/ssb/searchResults/searchResults?" +
-        "txt_subject=" + subject + "&" +
-        "txt_term=" + term + "&" +
+        "txt_subject=" + URLEncoder.encode(subject, StandardCharsets.UTF_8) + "&" +
+        "txt_term=" + URLEncoder.encode(term, StandardCharsets.UTF_8) + "&" +
         "startDatepicker=&endDatepicker=&pageOffset=0&pageMaxSize=500&sortColumn=subjectDescription&sortDirection=asc";
                                                     
         HttpRequest request = HttpRequest.newBuilder()
@@ -228,6 +255,7 @@ public class EasternSchedule {
         }
 
         // save data to cache file
+        Files.createDirectories(cacheFile.getParent());
         Files.writeString(cacheFile, response.body());
     }
 
@@ -240,7 +268,12 @@ public class EasternSchedule {
      * @throws Exception if there is an error in retreiving courses
      */
     public ArrayList<Course> queryCourseBySubject(String subject) throws Exception {
-        
+        if (subject == null || !subject.matches("[A-Za-z][A-Za-z0-9]*")) {
+            throw new IllegalArgumentException(
+                "Subject must start with a letter and contain only letters or numbers."
+            );
+        }
+        subject = subject.toUpperCase(java.util.Locale.ROOT);
         cacheCourses(subject);
         Path cacheFile = createCacheFile(subject);
         String content = Files.readString(cacheFile);

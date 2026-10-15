@@ -2,6 +2,20 @@
 skinparam classAttributeIconSize 0
 hide circle
 
-class MainMenu
+class MainMenu {
+  + main(args: String[]): void
+  ~ createStudent(scanner: Scanner): Student
+  - searchAndDisplayCourses(subject: String, courseNumber: String, instructor: String, schedule: EasternSchedule): List<Course>
+  ~ addCoursesToSchedule(scanner: Scanner, student: Student, availableCourses: List<Course>): void
+  ~ manageSchedule(scanner: Scanner, student: Student, availableCourses: List<Course>, schedule: EasternSchedule): void
+  - dropSelectedCourses(scanner: Scanner, student: Student): void
+}
+
+MainMenu ..> Student : creates, enrolls, and displays schedule
+MainMenu ..> Course : presents searchable courses for selection
+note right of MainMenu
+  After the schedule is calculated,
+  students can add or drop courses.
+end note
 
 @enduml
