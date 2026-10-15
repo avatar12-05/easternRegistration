@@ -5,9 +5,11 @@ import java.time.LocalTime;
 import java.time.format.DateTimeFormatter;
 import java.time.format.DateTimeParseException;
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Locale;
 import java.util.Scanner;
+import java.util.Set;
 
 public class MainMenu {
 
@@ -21,6 +23,7 @@ public class MainMenu {
 
     public static void main(String[] args) throws Exception {
         try (Scanner scanner = new Scanner(System.in)) {
+            Student student = createStudent(scanner);
             EasternSchedule schedule = new EasternSchedule();
             ArrayList<Term> terms = schedule.getAvailableTerms();
             if (terms.isEmpty()) {
@@ -38,8 +41,21 @@ public class MainMenu {
             String courseNumber = scanner.nextLine().trim();
             System.out.print("Enter an instructor name (leave blank for all): ");
             String instructor = scanner.nextLine().trim();
-            displayCourses(subject, courseNumber, instructor, schedule);
+            List<Course> courses =
+                searchAndDisplayCourses(subject, courseNumber, instructor, schedule);
+            addCoursesToSchedule(scanner, student, courses);
+            manageSchedule(scanner, student, courses, schedule);
         }
+    }
+
+    static Student createStudent(Scanner scanner) {
+        System.out.print("Enter student ID: ");
+        String id = scanner.nextLine();
+        System.out.print("Enter student first name: ");
+        String firstName = scanner.nextLine();
+        System.out.print("Enter student last name: ");
+        String lastName = scanner.nextLine();
+        return new Student(id, firstName, lastName);
     }
 
     private static Term selectTerm(Scanner scanner, List<Term> terms) {
@@ -82,18 +98,27 @@ public class MainMenu {
             String instructor,
             EasternSchedule schedule
     ) throws Exception {
+        searchAndDisplayCourses(subject, courseNumber, instructor, schedule);
+    }
+
+    private static List<Course> searchAndDisplayCourses(
+            String subject,
+            String courseNumber,
+            String instructor,
+            EasternSchedule schedule
+    ) throws Exception {
         if (subject == null || !subject.matches("[A-Za-z][A-Za-z0-9]*")) {
             System.out.println("Enter a valid subject code using letters and numbers.");
-            return;
+            return List.of();
         }
         if (courseNumber == null
                 || (!courseNumber.isBlank() && !courseNumber.matches("[A-Za-z0-9]+"))) {
             System.out.println("Enter a valid course number using letters and numbers.");
-            return;
+            return List.of();
         }
         if (instructor == null) {
             System.out.println("Enter a valid instructor name.");
-            return;
+            return List.of();
         }
 
         String subjectCode = subject.toUpperCase(Locale.ROOT);
@@ -110,12 +135,13 @@ public class MainMenu {
         if (courses.isEmpty()) {
             String search = formatSearch(subjectCode, numberFilter, instructorFilter);
             System.out.println("No courses found for " + search + ".");
-            return;
+            return courses;
         }
 
         String search = formatSearch(subjectCode, numberFilter, instructorFilter);
         System.out.println("Courses for " + search + ":");
-        for (Course course : courses) {
+        for (int courseIndex = 0; courseIndex < courses.size(); courseIndex++) {
+            Course course = courses.get(courseIndex);
             String section = course.sequenceNumber() == null
                 ? "TBA"
                 : course.sequenceNumber();
@@ -134,13 +160,18 @@ public class MainMenu {
 
             if (course.meetingsFaculty() == null || course.meetingsFaculty().isEmpty()) {
                 System.out.println(
-                    courseDetails + ", Instructor: " + courseInstructor +
+                    (courseIndex + 1) + ". " + courseDetails + ", Instructor: "
+                    + courseInstructor +
                     ", Days TBA, Time TBA"
                 );
                 continue;
             }
 
-            for (Course.MeetingFaculty meetingFaculty : course.meetingsFaculty()) {
+            for (int meetingIndex = 0;
+                    meetingIndex < course.meetingsFaculty().size();
+                    meetingIndex++) {
+                Course.MeetingFaculty meetingFaculty =
+                    course.meetingsFaculty().get(meetingIndex);
                 Course.MeetingTime meeting = meetingFaculty == null
                     ? null
                     : meetingFaculty.meetingTime();
@@ -150,11 +181,233 @@ public class MainMenu {
                         ? meetingFaculty.faculty()
                         : course.faculty();
                 System.out.println(
-                    courseDetails + ", Instructor: " + formatInstructor(instructors) +
+                    (meetingIndex == 0 ? (courseIndex + 1) + ". " : "   ")
+                    + courseDetails + ", Instructor: " + formatInstructor(instructors) +
                     ", " + formatMeeting(meeting)
                 );
             }
         }
+        return courses;
+    }
+
+    static void addCoursesToSchedule(
+            Scanner scanner,
+            Student student,
+            List<Course> availableCourses
+    ) {
+        if (availableCourses.isEmpty()) {
+            return;
+        }
+        while (true) {
+            System.out.print(
+                "Enter course numbers to add, separated by commas (blank to finish): "
+            );
+            String selection = scanner.nextLine().trim();
+            if (selection.isEmpty()) {
+                return;
+            }
+            try {
+                List<Integer> selectedIndices =
+                    parseCourseNumbers(selection, availableCourses.size());
+                Set<Integer> previouslySelectedIndices = new HashSet<>(selectedIndices);
+                ArrayList<Course> selectedCourses = coursesAt(availableCourses, selectedIndices);
+                ArrayList<Course> coursesNeedingReplacement =
+                    registerSelectedCourses(student, selectedCourses);
+
+                while (!coursesNeedingReplacement.isEmpty()) {
+                    System.out.println(
+                        coursesNeedingReplacement.size()
+                        + " selected course(s) conflict with the schedule. "
+                        + "Choose that many new, non-conflicting courses."
+                    );
+                    System.out.print(
+                        "Enter replacement course numbers separated by commas "
+                        + "(blank to finish): "
+                    );
+                    String replacements = scanner.nextLine().trim();
+                    if (replacements.isEmpty()) {
+                        break;
+                    }
+                    List<Integer> replacementIndices =
+                        parseCourseNumbers(replacements, availableCourses.size());
+                    if (replacementIndices.size() != coursesNeedingReplacement.size()
+                            || new HashSet<>(replacementIndices).size()
+                                != replacementIndices.size()
+                            || replacementIndices.stream()
+                                .anyMatch(previouslySelectedIndices::contains)) {
+                        System.out.println(
+                            "Choose " + coursesNeedingReplacement.size()
+                            + " different course numbers that were not already selected."
+                        );
+                        continue;
+                    }
+                    previouslySelectedIndices.addAll(replacementIndices);
+                    coursesNeedingReplacement = registerSelectedCourses(
+                        student,
+                        coursesAt(availableCourses, replacementIndices)
+                    );
+                }
+                return;
+            } catch (NumberFormatException exception) {
+                System.out.println(
+                    "Enter valid course numbers from 1 to " + availableCourses.size() + "."
+                );
+            } catch (IllegalStateException exception) {
+                System.out.println("Courses were not added: " + exception.getMessage());
+            }
+        }
+    }
+
+    static void manageSchedule(
+            Scanner scanner,
+            Student student,
+            List<Course> availableCourses,
+            EasternSchedule schedule
+    ) throws Exception {
+        while (true) {
+            student.displaySchedule();
+            System.out.printf(
+                "Credits enrolled: %s / %d%n",
+                formatNumber(student.getTotalCredits()),
+                Student.MAX_CREDITS
+            );
+            System.out.println(
+                "1. Add from current course list\n"
+                + "2. Search for and add courses\n"
+                + "3. Drop selected courses\n"
+                + "4. Drop all courses\n"
+                + "0. Finish"
+            );
+            System.out.print("Choose a schedule option: ");
+            String selection = scanner.nextLine().trim();
+            switch (selection) {
+                case "1" -> addCoursesToSchedule(scanner, student, availableCourses);
+                case "2" -> searchAndAddCourses(scanner, student, schedule);
+                case "3" -> dropSelectedCourses(scanner, student);
+                case "4" -> {
+                    student.dropAllCourses();
+                    System.out.println("All courses dropped.");
+                }
+                case "0" -> {
+                    student.displaySchedule();
+                    return;
+                }
+                default -> System.out.println("Choose an option from 0 to 4.");
+            }
+        }
+    }
+
+    private static void searchAndAddCourses(
+            Scanner scanner,
+            Student student,
+            EasternSchedule schedule
+    ) throws Exception {
+        System.out.print("Enter a subject code (for example, CSC): ");
+        String subject = scanner.nextLine().trim();
+        System.out.print("Enter a course number (leave blank for all): ");
+        String courseNumber = scanner.nextLine().trim();
+        System.out.print("Enter an instructor name (leave blank for all): ");
+        String instructor = scanner.nextLine().trim();
+        List<Course> courses =
+            searchAndDisplayCourses(subject, courseNumber, instructor, schedule);
+        addCoursesToSchedule(scanner, student, courses);
+    }
+
+    private static void dropSelectedCourses(Scanner scanner, Student student) {
+        List<Course> enrolledCourses = student.getCourses();
+        if (enrolledCourses.isEmpty()) {
+            System.out.println("There are no courses to drop.");
+            return;
+        }
+        System.out.println("Courses currently on the schedule:");
+        for (int i = 0; i < enrolledCourses.size(); i++) {
+            Course course = enrolledCourses.get(i);
+            System.out.printf(
+                "%d. %s %s-%s%n",
+                i + 1,
+                course.subject(),
+                course.courseNumber(),
+                course.sequenceNumber()
+            );
+        }
+        System.out.print("Enter course numbers to drop, separated by commas: ");
+        String selection = scanner.nextLine().trim();
+        if (selection.isEmpty()) {
+            return;
+        }
+        try {
+            List<Integer> indices = parseCourseNumbers(selection, enrolledCourses.size());
+            ArrayList<Course> selectedCourses = coursesAt(enrolledCourses, indices);
+            int droppedCount = student.dropCourses(selectedCourses.toArray(Course[]::new));
+            System.out.println(droppedCount + " course(s) dropped.");
+        } catch (NumberFormatException exception) {
+            System.out.println(
+                "Enter distinct course numbers from 1 to " + enrolledCourses.size() + "."
+            );
+        }
+    }
+
+    private static ArrayList<Course> registerSelectedCourses(
+            Student student,
+            List<Course> selectedCourses
+    ) {
+        ArrayList<Course> addedFromSelection = new ArrayList<>();
+        ArrayList<Course> coursesNeedingReplacement = new ArrayList<>();
+        for (Course course : selectedCourses) {
+            try {
+                if (student.addCourse(course)) {
+                    addedFromSelection.add(course);
+                }
+            } catch (Student.CourseConflictException exception) {
+                System.out.println("Cannot add course: " + exception.getMessage());
+                Course conflictingCourse = exception.getConflictingCourse();
+                if (addedFromSelection.remove(conflictingCourse)) {
+                    student.dropCourse(conflictingCourse);
+                    addIfAbsent(coursesNeedingReplacement, conflictingCourse);
+                }
+                addIfAbsent(coursesNeedingReplacement, course);
+            } catch (IllegalStateException exception) {
+                System.out.println("Cannot add course: " + exception.getMessage());
+            }
+        }
+        if (!addedFromSelection.isEmpty()) {
+            System.out.println(
+                addedFromSelection.size() + " non-conflicting course(s) added to the schedule."
+            );
+        }
+        return coursesNeedingReplacement;
+    }
+
+    private static void addIfAbsent(List<Course> courses, Course course) {
+        if (!courses.contains(course)) {
+            courses.add(course);
+        }
+    }
+
+    private static List<Integer> parseCourseNumbers(String selection, int courseCount) {
+        ArrayList<Integer> indices = new ArrayList<>();
+        for (String selectedNumber : selection.split(",")) {
+            int index = Integer.parseInt(selectedNumber.trim()) - 1;
+            if (index < 0 || index >= courseCount) {
+                throw new NumberFormatException();
+            }
+            indices.add(index);
+        }
+        if (new HashSet<>(indices).size() != indices.size()) {
+            throw new NumberFormatException();
+        }
+        return indices;
+    }
+
+    private static ArrayList<Course> coursesAt(
+            List<Course> availableCourses,
+            List<Integer> indices
+    ) {
+        ArrayList<Course> selectedCourses = new ArrayList<>();
+        for (int index : indices) {
+            selectedCourses.add(availableCourses.get(index));
+        }
+        return selectedCourses;
     }
 
     private static String formatSearch(
