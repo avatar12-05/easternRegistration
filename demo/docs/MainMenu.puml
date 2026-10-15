@@ -3,7 +3,7 @@ skinparam classAttributeIconSize 0
 hide circle
 
 class MainMenu {
-  + main(args: String[]): void
+  ~ run(): void
   ~ createStudent(scanner: Scanner): Student
   - searchAndDisplayCourses(subject: String, courseNumber: String, instructor: String, schedule: EasternSchedule): List<Course>
   ~ addCoursesToSchedule(scanner: Scanner, student: Student, availableCourses: List<Course>): void

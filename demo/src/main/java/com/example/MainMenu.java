@@ -21,7 +21,7 @@ public class MainMenu {
     private MainMenu() {
     }
 
-    public static void main(String[] args) throws Exception {
+    static void run() throws Exception {
         try (Scanner scanner = new Scanner(System.in)) {
             Student student = createStudent(scanner);
             EasternSchedule schedule = new EasternSchedule();
