@@ -197,6 +197,9 @@ public class EasternSchedule {
         return cacheDirectory().resolve("term_" + term + "_" + subject + ".txt");
     }
 
+    /** 
+     * @return Path
+     */
     private Path cacheDirectory() {
         Path localCache = Path.of("cache");
         if (Files.isRegularFile(localCache.resolve("terms.txt"))) {

@@ -24,6 +24,14 @@ public class Student {
     private final String lastName;
     private final ArrayList<Course> courses = new ArrayList<>();
 
+    public static class CourseFullException extends IllegalStateException {
+        private static final long serialVersionUID = 1L;
+
+        CourseFullException() {
+            super("Course is full. Select another course.");
+        }
+    }
+
     public static class CourseConflictException extends IllegalStateException {
         private static final long serialVersionUID = 1L;
 
@@ -57,14 +65,23 @@ public class Student {
         this.lastName = requireValue(lastName, "Last name");
     }
 
+    /** 
+     * @return String
+     */
     public String getId() {
         return id;
     }
 
+    /** 
+     * @return String
+     */
     public String getFirstName() {
         return firstName;
     }
 
+    /** 
+     * @return String
+     */
     public String getLastName() {
         return lastName;
     }
@@ -78,6 +95,9 @@ public class Student {
         return List.copyOf(courses);
     }
 
+    /** 
+     * @return double
+     */
     public double getTotalCredits() {
         return courses.stream().mapToDouble(Student::courseCredits).sum();
     }
@@ -214,9 +234,13 @@ public class Student {
         }
     }
 
+    /** 
+     * @param course
+     * @param registeredCourses
+     */
     private void validateCourseForRegistration(Course course, List<Course> registeredCourses) {
         if (isFull(course)) {
-            throw new IllegalStateException("Course is full.");
+            throw new CourseFullException();
         }
         double courseCredits = courseCredits(course);
         double registeredCredits = registeredCourses.stream()
@@ -234,16 +258,29 @@ public class Student {
         }
     }
 
+    /** 
+     * @param course
+     * @return boolean
+     */
     private boolean containsCourse(Course course) {
         return containsCourse(courses, course);
     }
 
+    /** 
+     * @param registeredCourses
+     * @param course
+     * @return boolean
+     */
     private boolean containsCourse(List<Course> registeredCourses, Course course) {
         return registeredCourses.stream().anyMatch(
             existing -> isSameCourse(existing, course)
         );
     }
 
+    /** 
+     * @param course
+     * @return boolean
+     */
     private boolean isFull(Course course) {
         if (course.seatsAvailable() != null) {
             return course.seatsAvailable() <= 0;
@@ -252,6 +289,10 @@ public class Student {
             && course.enrollment() >= course.maximumEnrollment();
     }
 
+    /** 
+     * @param course
+     * @return double
+     */
     private static double courseCredits(Course course) {
         Double credits = course.creditHours();
         if (credits == null) {
@@ -267,6 +308,11 @@ public class Student {
         return credits;
     }
 
+    /** 
+     * @param first
+     * @param second
+     * @return boolean
+     */
     private boolean hasTimeConflict(Course first, Course second) {
         if (first.meetingsFaculty() == null || second.meetingsFaculty() == null) {
             return false;
@@ -288,6 +334,11 @@ public class Student {
         return false;
     }
 
+    /** 
+     * @param first
+     * @param second
+     * @return boolean
+     */
     private boolean meetingsConflict(
             Course.MeetingTime first,
             Course.MeetingTime second
@@ -308,6 +359,11 @@ public class Student {
         }
     }
 
+    /** 
+     * @param first
+     * @param second
+     * @return boolean
+     */
     private boolean shareMeetingDay(Course.MeetingTime first, Course.MeetingTime second) {
         return first.monday() && second.monday()
             || first.tuesday() && second.tuesday()
@@ -318,10 +374,18 @@ public class Student {
             || first.sunday() && second.sunday();
     }
 
+    /** 
+     * @param time
+     * @return boolean
+     */
     private boolean isMissing(String time) {
         return time == null || time.isBlank();
     }
 
+    /** 
+     * @param course
+     * @return String
+     */
     private String formatCourseCredits(Course course) {
         Double credits = course.creditHours() != null
             ? course.creditHours()
@@ -339,10 +403,18 @@ public class Student {
             : formatted;
     }
 
+    /** 
+     * @param number
+     * @return String
+     */
     private String formatNumber(double number) {
         return java.math.BigDecimal.valueOf(number).stripTrailingZeros().toPlainString();
     }
 
+    /** 
+     * @param meeting
+     * @return String
+     */
     private String formatMeeting(Course.MeetingTime meeting) {
         if (meeting == null) {
             return "Days TBA, Time TBA";
@@ -372,6 +444,10 @@ public class Student {
         }
     }
 
+    /** 
+     * @param faculty
+     * @return String
+     */
     private String formatInstructors(List<Course.Faculty> faculty) {
         if (faculty == null || faculty.isEmpty()) {
             return "TBA";
@@ -384,10 +460,20 @@ public class Student {
         return names.isEmpty() ? "TBA" : String.join(", ", names);
     }
 
+    /** 
+     * @param value
+     * @param fallback
+     * @return String
+     */
     private String valueOr(String value, String fallback) {
         return value == null || value.isBlank() ? fallback : value;
     }
 
+    /** 
+     * @param first
+     * @param second
+     * @return boolean
+     */
     private boolean isSameCourse(Course first, Course second) {
         if (first.id() != null && !first.id().isBlank()
                 && second.id() != null && !second.id().isBlank()) {
@@ -396,6 +482,11 @@ public class Student {
         return first.equals(second);
     }
 
+    /** 
+     * @param value
+     * @param field
+     * @return String
+     */
     private static String requireValue(String value, String field) {
         if (value == null || value.isBlank()) {
             throw new IllegalArgumentException(field + " cannot be blank.");

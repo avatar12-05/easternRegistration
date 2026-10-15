@@ -2,56 +2,128 @@
 skinparam classAttributeIconSize 0
 hide circle
 
+class EasternRegistration {
+  - EasternRegistration()
+  + main(args: String[]): void
+}
+
+class MainMenu {
+  - MainMenu()
+  ~ run(): void
+  ~ createStudent(scanner: Scanner): Student
+  + displayCourses(subject: String, schedule: EasternSchedule): void
+  + displayCourses(subject: String, courseNumber: String, schedule: EasternSchedule): void
+  + displayCourses(subject: String, courseNumber: String, instructor: String, schedule: EasternSchedule): void
+  ~ addCoursesToSchedule(scanner: Scanner, student: Student, availableCourses: List<Course>): void
+  ~ manageSchedule(scanner: Scanner, student: Student, availableCourses: List<Course>, schedule: EasternSchedule): void
+}
+
 class EasternSchedule {
-  -{static} BASE: String = "https://reg-prod.ec.easternct.edu/StudentRegistrationSsb"
-  -term: String
-  ~cookieManager: CookieManager
-  ~client: HttpClient
-  --
-  +EasternSchedule()
-  +getTerm(): String
-  -retrieveTerms(): String
-  -parseTerms(content: String): ArrayList<Term>
-  -parseCourses(content: String): ArrayList<Course>
-  +getAvailableTerms(): ArrayList<Term>
-  -postTerm(): String
-  -createCacheFile(subject: String): Path
-  -cacheCourses(subject: String): void
-  +queryCourseBySubject(subject: String): ArrayList<Course>
+  - {static} BASE: String
+  - term: String
+  ~ cookieManager: CookieManager
+  ~ client: HttpClient
+  + EasternSchedule()
+  + EasternSchedule(term: String)
+  + getTerm(): String
+  + getAvailableTerms(): ArrayList<Term>
+  + queryCourseBySubject(subject: String): ArrayList<Course>
+  - retrieveTerms(): String
+  - parseTerms(content: String): ArrayList<Term>
+  - parseCourses(content: String): ArrayList<Course>
+  - postTerm(): String
+  - createCacheFile(subject: String): Path
+  - cacheDirectory(): Path
+  - cacheCourses(subject: String): void
+}
+
+class Student {
+  + {static} MAX_CREDITS: int = 16
+  - id: String
+  - firstName: String
+  - lastName: String
+  - courses: ArrayList<Course>
+  + Student(id: String, firstName: String, lastName: String)
+  + getId(): String
+  + getFirstName(): String
+  + getLastName(): String
+  + getCourses(): List<Course>
+  + getTotalCredits(): double
+  + addCourse(course: Course): boolean
+  + addCourses(requestedCourses: Course...): int
+  + dropCourse(course: Course): boolean
+  + dropCourses(courses: Course...): int
+  + dropAllCourses(): void
+  + displaySchedule(): void
+}
+
+class "Student.CourseConflictException" as CourseConflictException <<exception>> {
+  - conflictingCourse: Course
+  ~ CourseConflictException(conflictingCourse: Course)
+  + getConflictingCourse(): Course
+}
+
+class "Student.CourseFullException" as CourseFullException <<exception>> {
+  ~ CourseFullException()
 }
 
 record Course {
-  -id : String
-  -subject: String
-  -courseNumber: String
-  -meetingsFaculty: List<MeetingFaculty>
+  id: String
+  subject: String
+  courseNumber: String
+  sequenceNumber: String
+  courseTitle: String
+  creditHours: Double
+  creditHourLow: Double
+  creditHourHigh: Double
+  maximumEnrollment: Integer
+  enrollment: Integer
+  seatsAvailable: Integer
+  faculty: List<Faculty>
+  meetingsFaculty: List<MeetingFaculty>
+  + toString(): String
 }
 
-record MeetingFaculty {
-  -meetingTime: MeetingTime
+record "Course.Faculty" as Faculty {
+  displayName: String
 }
 
-record MeetingTime {
-  -monday: boolean
-  -tuesday: boolean
-  -wednesday: boolean
-  -thursday: boolean
-  -friday: boolean
-  -saturday: boolean
-  -sunday: boolean
+record "Course.MeetingFaculty" as MeetingFaculty {
+  faculty: List<Faculty>
+  meetingTime: MeetingTime
+  + toString(): String
+}
+
+record "Course.MeetingTime" as MeetingTime {
+  monday: boolean
+  tuesday: boolean
+  wednesday: boolean
+  thursday: boolean
+  friday: boolean
+  saturday: boolean
+  sunday: boolean
+  beginTime: String
+  endTime: String
+  + toString(): String
 }
 
 record Term {
-  -code: String
-  -description: String
+  code: String
+  description: String
 }
 
-'Aggregation and composition
-MeetingFaculty "1" o-- "1" MeetingTime : has a >
-Course "1" 0-- "0*" MeetingFaculty: has a >
-
-'Dependencies
-EasternSchedule ..> Term : uses
-EasternSchedule ..> Course : uses
+EasternRegistration ..> MainMenu : starts
+MainMenu ..> EasternSchedule : searches schedule data
+MainMenu ..> Student : creates and manages enrollment
+MainMenu ..> Course : displays available sections
+EasternSchedule ..> Term : retrieves terms
+EasternSchedule ..> Course : retrieves course sections
+Student "1" o-- "0..*" Course : enrolled courses
+Student ..> CourseConflictException : rejects time conflicts
+Student ..> CourseFullException : rejects full courses
+Course "1" o-- "0..*" Faculty : instructors
+Course "1" o-- "0..*" MeetingFaculty : meeting details
+MeetingFaculty "1" o-- "0..1" MeetingTime : scheduled time
+MeetingFaculty "0..*" --> "0..*" Faculty : meeting instructors
 
 @enduml

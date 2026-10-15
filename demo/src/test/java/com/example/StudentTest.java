@@ -133,23 +133,53 @@ public class StudentTest {
         Student student = new Student("12345", "Ada", "Lovelace");
         Course mondayFirst = timedCourse("monday-first", meeting(true, false, false, false,
             "0900", "1000"));
-        Course mondaySecond = timedCourse("monday-second", meeting(true, false, false, false,
-            "0930", "1030"));
         Course tuesday = timedCourse("tuesday", meeting(false, true, false, false,
             "0900", "1000"));
         Course wednesday = timedCourse("wednesday", meeting(false, false, true, false,
             "0900", "1000"));
         Course thursday = timedCourse("thursday", meeting(false, false, false, true,
             "0900", "1000"));
+        Course conflictingCourse = timedCourse(
+            "monday-second", "361", meeting(true, false, false, false, "0930", "1030")
+        );
         List<Course> available = List.of(
-            mondayFirst, mondaySecond, tuesday, wednesday, thursday
+            mondayFirst, conflictingCourse, tuesday, wednesday, thursday
         );
 
+        ByteArrayOutputStream output = new ByteArrayOutputStream();
+        PrintStream originalOutput = System.out;
         try (Scanner scanner = new Scanner("1,2,3\n4,5\n")) {
+            System.setOut(new PrintStream(output));
             MainMenu.addCoursesToSchedule(scanner, student, available);
+        } finally {
+            System.setOut(originalOutput);
         }
 
         assertEquals(List.of(tuesday, wednesday, thursday), student.getCourses());
+        assertTrue(output.toString().contains(
+            "Cannot add CSC 361-01: conflicts with CSC 360-01."
+        ));
+    }
+
+    @Test
+    public void mainMenuPromptsForReplacementWhenSelectedCourseIsFull() {
+        Student student = new Student("12345", "Ada", "Lovelace");
+        Course full = course("full", 3.0, 0, meeting(true, "0900", "1000"));
+        Course available = courseWithoutMeeting("available", 3.0);
+
+        ByteArrayOutputStream output = new ByteArrayOutputStream();
+        PrintStream originalOutput = System.out;
+        try (Scanner scanner = new Scanner("1\n2\n")) {
+            System.setOut(new PrintStream(output));
+            MainMenu.addCoursesToSchedule(scanner, student, List.of(full, available));
+        } finally {
+            System.setOut(originalOutput);
+        }
+
+        assertEquals(List.of(available), student.getCourses());
+        assertTrue(output.toString().contains(
+            "Cannot add CSC 360-01: Course is full. Select another course."
+        ));
     }
 
     @Test
@@ -184,6 +214,9 @@ public class StudentTest {
         assertAddRejected(student, courseWithoutMeeting("course-too-many", 0.5));
     }
 
+    /** 
+     * @throws Exception
+     */
     @Test
     public void scheduleMenuAllowsDroppingCourseAndFinishing() throws Exception {
         Student student = new Student("12345", "Ada", "Lovelace");
@@ -252,6 +285,12 @@ public class StudentTest {
         new Student("12345", " ", "Lovelace");
     }
 
+    /** 
+     * @param id
+     * @param subject
+     * @param courseNumber
+     * @return Course
+     */
     private Course course(String id, String subject, String courseNumber) {
         return new Course(
             id, subject, courseNumber, "01", "Course", 3.0, 3.0, 3.0,
@@ -260,6 +299,13 @@ public class StudentTest {
         );
     }
 
+    /** 
+     * @param id
+     * @param credits
+     * @param seatsAvailable
+     * @param meetingTime
+     * @return Course
+     */
     private Course course(
             String id,
             double credits,
@@ -273,6 +319,11 @@ public class StudentTest {
         );
     }
 
+    /** 
+     * @param id
+     * @param credits
+     * @return Course
+     */
     private Course courseWithoutMeeting(String id, double credits) {
         return new Course(
             id, "CSC", "360", "01", "Course", credits, credits, credits,
@@ -280,20 +331,48 @@ public class StudentTest {
         );
     }
 
+    /** 
+     * @param id
+     * @param meetingTime
+     * @return Course
+     */
     private Course timedCourse(String id, Course.MeetingTime meetingTime) {
+        return timedCourse(id, "360", meetingTime);
+    }
+
+    private Course timedCourse(
+            String id,
+            String courseNumber,
+            Course.MeetingTime meetingTime
+    ) {
         return new Course(
-            id, "CSC", "360", "01", "Course", 3.0, 3.0, 3.0,
+            id, "CSC", courseNumber, "01", "Course", 3.0, 3.0, 3.0,
             20, 19, 1, List.of(),
             List.of(new Course.MeetingFaculty(List.of(), meetingTime))
         );
     }
 
+    /** 
+     * @param monday
+     * @param start
+     * @param end
+     * @return MeetingTime
+     */
     private Course.MeetingTime meeting(boolean monday, String start, String end) {
         return new Course.MeetingTime(
             monday, !monday, false, false, false, false, false, start, end
         );
     }
 
+    /** 
+     * @param monday
+     * @param tuesday
+     * @param wednesday
+     * @param thursday
+     * @param start
+     * @param end
+     * @return MeetingTime
+     */
     private Course.MeetingTime meeting(
             boolean monday,
             boolean tuesday,
@@ -307,6 +386,10 @@ public class StudentTest {
         );
     }
 
+    /** 
+     * @param student
+     * @param course
+     */
     private void assertAddRejected(Student student, Course course) {
         try {
             student.addCourse(course);
@@ -316,6 +399,10 @@ public class StudentTest {
         throw new AssertionError("Expected course registration to be rejected.");
     }
 
+    /** 
+     * @param student
+     * @param courses
+     */
     private void assertAddCoursesRejected(Student student, Course... courses) {
         try {
             student.addCourses(courses);
