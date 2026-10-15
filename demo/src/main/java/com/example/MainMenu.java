@@ -21,6 +21,9 @@ public class MainMenu {
     private MainMenu() {
     }
 
+    /** 
+     * @throws Exception
+     */
     static void run() throws Exception {
         try (Scanner scanner = new Scanner(System.in)) {
             Student student = createStudent(scanner);
@@ -48,6 +51,10 @@ public class MainMenu {
         }
     }
 
+    /** 
+     * @param scanner
+     * @return Student
+     */
     static Student createStudent(Scanner scanner) {
         System.out.print("Enter student ID: ");
         String id = scanner.nextLine();
@@ -58,6 +65,11 @@ public class MainMenu {
         return new Student(id, firstName, lastName);
     }
 
+    /** 
+     * @param scanner
+     * @param terms
+     * @return Term
+     */
     private static Term selectTerm(Scanner scanner, List<Term> terms) {
         System.out.println("Available semesters:");
         int semesterCount = Math.min(5, terms.size());
@@ -80,10 +92,21 @@ public class MainMenu {
         }
     }
 
+    /** 
+     * @param subject
+     * @param schedule
+     * @throws Exception
+     */
     public static void displayCourses(String subject, EasternSchedule schedule) throws Exception {
         displayCourses(subject, "", "", schedule);
     }
 
+    /** 
+     * @param subject
+     * @param courseNumber
+     * @param schedule
+     * @throws Exception
+     */
     public static void displayCourses(
             String subject,
             String courseNumber,
@@ -92,6 +115,13 @@ public class MainMenu {
         displayCourses(subject, courseNumber, "", schedule);
     }
 
+    /** 
+     * @param subject
+     * @param courseNumber
+     * @param instructor
+     * @param schedule
+     * @throws Exception
+     */
     public static void displayCourses(
             String subject,
             String courseNumber,
@@ -101,6 +131,14 @@ public class MainMenu {
         searchAndDisplayCourses(subject, courseNumber, instructor, schedule);
     }
 
+    /** 
+     * @param subject
+     * @param courseNumber
+     * @param instructor
+     * @param schedule
+     * @return List<Course>
+     * @throws Exception
+     */
     private static List<Course> searchAndDisplayCourses(
             String subject,
             String courseNumber,
@@ -190,6 +228,11 @@ public class MainMenu {
         return courses;
     }
 
+    /** 
+     * @param scanner
+     * @param student
+     * @param availableCourses
+     */
     static void addCoursesToSchedule(
             Scanner scanner,
             Student student,
@@ -217,8 +260,9 @@ public class MainMenu {
                 while (!coursesNeedingReplacement.isEmpty()) {
                     System.out.println(
                         coursesNeedingReplacement.size()
-                        + " selected course(s) conflict with the schedule. "
-                        + "Choose that many new, non-conflicting courses."
+                        + " selected course(s) could not be added because they are full "
+                        + "or conflict with the schedule. Choose that many available, "
+                        + "non-conflicting courses."
                     );
                     System.out.print(
                         "Enter replacement course numbers separated by commas "
@@ -258,6 +302,13 @@ public class MainMenu {
         }
     }
 
+    /** 
+     * @param scanner
+     * @param student
+     * @param availableCourses
+     * @param schedule
+     * @throws Exception
+     */
     static void manageSchedule(
             Scanner scanner,
             Student student,
@@ -297,6 +348,12 @@ public class MainMenu {
         }
     }
 
+    /** 
+     * @param scanner
+     * @param student
+     * @param schedule
+     * @throws Exception
+     */
     private static void searchAndAddCourses(
             Scanner scanner,
             Student student,
@@ -313,6 +370,10 @@ public class MainMenu {
         addCoursesToSchedule(scanner, student, courses);
     }
 
+    /** 
+     * @param scanner
+     * @param student
+     */
     private static void dropSelectedCourses(Scanner scanner, Student student) {
         List<Course> enrolledCourses = student.getCourses();
         if (enrolledCourses.isEmpty()) {
@@ -347,6 +408,11 @@ public class MainMenu {
         }
     }
 
+    /** 
+     * @param student
+     * @param selectedCourses
+     * @return ArrayList<Course>
+     */
     private static ArrayList<Course> registerSelectedCourses(
             Student student,
             List<Course> selectedCourses
@@ -359,15 +425,25 @@ public class MainMenu {
                     addedFromSelection.add(course);
                 }
             } catch (Student.CourseConflictException exception) {
-                System.out.println("Cannot add course: " + exception.getMessage());
                 Course conflictingCourse = exception.getConflictingCourse();
+                System.out.println(
+                    "Cannot add " + courseLabel(course) + ": conflicts with "
+                    + courseLabel(conflictingCourse) + "."
+                );
                 if (addedFromSelection.remove(conflictingCourse)) {
                     student.dropCourse(conflictingCourse);
                     addIfAbsent(coursesNeedingReplacement, conflictingCourse);
                 }
                 addIfAbsent(coursesNeedingReplacement, course);
+            } catch (Student.CourseFullException exception) {
+                System.out.println(
+                    "Cannot add " + courseLabel(course) + ": " + exception.getMessage()
+                );
+                addIfAbsent(coursesNeedingReplacement, course);
             } catch (IllegalStateException exception) {
-                System.out.println("Cannot add course: " + exception.getMessage());
+                System.out.println(
+                    "Cannot add " + courseLabel(course) + ": " + exception.getMessage()
+                );
             }
         }
         if (!addedFromSelection.isEmpty()) {
@@ -378,12 +454,31 @@ public class MainMenu {
         return coursesNeedingReplacement;
     }
 
+    private static String courseLabel(Course course) {
+        return valueOr(course.subject(), "Subject TBA") + " "
+            + valueOr(course.courseNumber(), "Number TBA") + "-"
+            + valueOr(course.sequenceNumber(), "Section TBA");
+    }
+
+    private static String valueOr(String value, String fallback) {
+        return value == null || value.isBlank() ? fallback : value;
+    }
+
+    /** 
+     * @param courses
+     * @param course
+     */
     private static void addIfAbsent(List<Course> courses, Course course) {
         if (!courses.contains(course)) {
             courses.add(course);
         }
     }
 
+    /** 
+     * @param selection
+     * @param courseCount
+     * @return List<Integer>
+     */
     private static List<Integer> parseCourseNumbers(String selection, int courseCount) {
         ArrayList<Integer> indices = new ArrayList<>();
         for (String selectedNumber : selection.split(",")) {
@@ -399,6 +494,11 @@ public class MainMenu {
         return indices;
     }
 
+    /** 
+     * @param availableCourses
+     * @param indices
+     * @return ArrayList<Course>
+     */
     private static ArrayList<Course> coursesAt(
             List<Course> availableCourses,
             List<Integer> indices
@@ -410,6 +510,12 @@ public class MainMenu {
         return selectedCourses;
     }
 
+    /** 
+     * @param subject
+     * @param courseNumber
+     * @param instructor
+     * @return String
+     */
     private static String formatSearch(
             String subject,
             String courseNumber,
@@ -425,6 +531,11 @@ public class MainMenu {
         return search.toString();
     }
 
+    /** 
+     * @param course
+     * @param search
+     * @return boolean
+     */
     private static boolean matchesInstructor(Course course, String search) {
         if (matchesInstructor(course.faculty(), search)) {
             return true;
@@ -440,6 +551,11 @@ public class MainMenu {
         return false;
     }
 
+    /** 
+     * @param faculty
+     * @param search
+     * @return boolean
+     */
     private static boolean matchesInstructor(List<Course.Faculty> faculty, String search) {
         if (faculty == null) {
             return false;
@@ -454,6 +570,10 @@ public class MainMenu {
         return false;
     }
 
+    /** 
+     * @param faculty
+     * @return String
+     */
     private static String formatInstructor(List<Course.Faculty> faculty) {
         if (faculty == null || faculty.isEmpty()) {
             return "TBA";
@@ -469,6 +589,10 @@ public class MainMenu {
         return names.isEmpty() ? "TBA" : String.join(", ", names);
     }
 
+    /** 
+     * @param course
+     * @return String
+     */
     private static String formatCredits(Course course) {
         Double credits = course.creditHours() != null
             ? course.creditHours()
@@ -489,10 +613,18 @@ public class MainMenu {
         return formattedCredits;
     }
 
+    /** 
+     * @param value
+     * @return String
+     */
     private static String formatNumber(double value) {
         return BigDecimal.valueOf(value).stripTrailingZeros().toPlainString();
     }
 
+    /** 
+     * @param meeting
+     * @return String
+     */
     private static String formatMeeting(Course.MeetingTime meeting) {
         if (meeting == null) {
             return "Days TBA, Time TBA";
@@ -512,6 +644,11 @@ public class MainMenu {
         return daysText + ", " + timeText;
     }
 
+    /** 
+     * @param start
+     * @param end
+     * @return String
+     */
     private static String formatTimeRange(String start, String end) {
         if (start == null || start.isBlank() || end == null || end.isBlank()) {
             return "Time TBA";
@@ -531,6 +668,10 @@ public class MainMenu {
         }
     }
 
+    /** 
+     * @param time
+     * @return String
+     */
     private static String formatTime(String time) {
         if (time == null || time.isBlank()) {
             return "TBA";
